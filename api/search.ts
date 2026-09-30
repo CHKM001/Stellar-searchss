@@ -7,11 +7,11 @@ import {
 } from '../src/lib/constants'
 
 // ─── Config ───────────────────────────────────────────────────────────────
-const RECEIVING_ADDRESS = process.env.STELLAR_RECEIVING_ADDRESS!
-const NETWORK           = STELLAR_NETWORK as 'stellar:testnet' | 'stellar:mainnet'
-const SERPER_API_KEY    = process.env.SERPER_API_KEY!
+export const RECEIVING_ADDRESS = process.env.STELLAR_RECEIVING_ADDRESS!
+export const NETWORK           = STELLAR_NETWORK as 'stellar:testnet' | 'stellar:mainnet'
+export const SERPER_API_KEY    = process.env.SERPER_API_KEY!
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ─── CORS ─────────────────────────────────────────────────────────────────
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -150,3 +150,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Search failed.' })
   }
 }
+
+export default handler

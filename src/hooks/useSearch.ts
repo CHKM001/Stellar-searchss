@@ -10,6 +10,7 @@
  * Fix: convert Buffer → base64 string using Buffer.from(result).toString('base64')
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useState, useCallback }              from 'react'
 import { toast }                               from 'sonner'
 import { x402Client, x402HTTPClient }          from '@x402/fetch'
@@ -25,6 +26,7 @@ const SERVER_URL = (import.meta as any).env?.VITE_SERVER_URL ?? (
     : 'http://localhost:3001'
 )
 
+export const __test__ = { SERVER_URL }
 // Soroban RPC URLs
 const SOROBAN_RPC_TESTNET = 'https://soroban-testnet.stellar.org'
 const SOROBAN_RPC_MAINNET = 'https://soroban-rpc.mainnet.stellar.org' // Or another public RPC
