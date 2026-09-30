@@ -139,14 +139,23 @@ stellar-search/
       "args": ["tsx", "./mcp-server/index.ts"],
       "env": {
         "GROQ_API_KEY": "your_groq_api_key",
-        "SEARCH_API_URL": "http://localhost:3001"
+        "SEARCH_API_URL": "http://localhost:3001",
+        "MCP_STELLAR_SECRET": "S... your funded Stellar secret key"
       }
     }
   }
 }
 ```
 
-Then tell Claude Code: `"Search for the latest Stellar x402 examples"` — it calls `web_search`, the server pays via x402, and Claude gets real results.
+Then tell Claude Code: `"Search for the latest Stellar x402 examples"` — it calls `web_search`, the MCP server pays the fee via x402, and Claude gets real results.
+
+### How payment works (MCP client)
+
+The server is the **payee**: `/search`, `/images` and `/news` are guarded by its x402 middleware. The MCP server is the **payer** — on an HTTP `402` it signs a Soroban auth entry with `MCP_STELLAR_SECRET` (via `@x402/fetch` + `@x402/stellar`) and retries the request. This is the intended model: server-to-server, no browser wallet involved.
+
+- Fund the account behind `MCP_STELLAR_SECRET` with testnet USDC **and a USDC trustline** before use.
+- `ai_summarize`, `check_balance` and `get_search_stats` are free and need no key.
+- If `MCP_STELLAR_SECRET` is unset, the paid tools return an explicit configuration error naming the fix (they never fall through to a bare `HTTP 402`).
 
 ---
 

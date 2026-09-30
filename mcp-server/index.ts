@@ -22,6 +22,9 @@ import {
   STELLAR_EXPERT_URL,
   AMOUNT_USDC
 } from '../src/lib/constants'
+import { wrapFetchWithPayment, x402Client, type Network } from '@x402/fetch'
+import { ExactStellarScheme } from '@x402/stellar/exact/client'
+import { createEd25519Signer } from '@x402/stellar'
 
 dotenv.config()
 
@@ -29,6 +32,55 @@ const SERVER_URL = process.env.SEARCH_API_URL || 'http://localhost:3001'
 const GROQ_API_KEY = process.env.GROQ_API_KEY!
 
 const groq = new Groq({ apiKey: GROQ_API_KEY })
+
+// ─── x402 paying client (issue #95) ─────────────────────────────────────────
+// The MCP server is a *payer*, not the payee: /search, /images and /news are
+// guarded by the server's x402 middleware, so a bare fetch returns HTTP 402.
+// We sign the payment with the MCP's own Stellar key.
+const MCP_STELLAR_SECRET = process.env.MCP_STELLAR_SECRET
+// The CAIP-2 network the server advertises in its 402 `accepts` (same value as
+// the server's STELLAR_NETWORK; both default to `stellar:testnet`).
+const X402_NETWORK = (process.env.X402_NETWORK || STELLAR_NETWORK) as Network
+
+const NO_PAYMENT_CONFIG =
+  'No x402 payment method configured. Set MCP_STELLAR_SECRET to a funded Stellar ' +
+  'secret key (S...) so the MCP server can pay the per-query fee. ' +
+  'Paid tools: web_search, image_search, news_search. ' +
+  'Free tools (ai_summarize, check_balance, get_search_stats) need no payment.'
+
+let paidFetch: typeof fetch | null = null
+
+/**
+ * A `fetch` that transparently answers x402 402 responses by signing a payment
+ * with the MCP key (`MCP_STELLAR_SECRET`), or throws an actionable error when
+ * that key is absent. Built lazily so the free tools keep working without a
+ * wallet.
+ */
+function getPaidFetch(): typeof fetch {
+  if (paidFetch) return paidFetch
+  if (!MCP_STELLAR_SECRET) throw new Error(NO_PAYMENT_CONFIG)
+
+  const signer = createEd25519Signer(MCP_STELLAR_SECRET, X402_NETWORK)
+  const scheme = new ExactStellarScheme(signer)
+  const client = new x402Client().register(X402_NETWORK, scheme)
+  paidFetch = wrapFetchWithPayment(fetch, client)
+  return paidFetch
+}
+
+/** Turn a non-OK HTTP status into a diagnosable message (402 = payment). */
+function describeHttpError(status: number): string {
+  if (status === 402) {
+    return (
+      'payment rejected (HTTP 402) — check that MCP_STELLAR_SECRET holds enough ' +
+      'USDC and a USDC trustline, and that the x402 facilitator is reachable'
+    )
+  }
+  return `HTTP ${status}`
+}
+
+if (!MCP_STELLAR_SECRET) {
+  console.error(`[stellar-search-mcp] ${NO_PAYMENT_CONFIG}`)
+}
 
 // ─── MCP server ───────────────────────────────────────────────────────────
 const server = new Server(
@@ -127,14 +179,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const params = new URLSearchParams({ q: query, count: String(count) })
       if (freshness) params.set('freshness', freshness)
 
-      // The server's x402 middleware handles the full payment flow.
-      // In server-to-server mode the server needs a funded Stellar key.
-      // For MCP usage we call the server which itself holds the paying wallet.
-      const res = await fetch(`${SERVER_URL}/search?${params}`)
+      // The server is the *payee*: /search is guarded by its x402 middleware,
+      // so we pay with our own Stellar key via the wrapped fetch.
+      const res = await getPaidFetch()(`${SERVER_URL}/search?${params}`)
 
       if (!res.ok) {
         const e = await res.json().catch(() => ({}))
-        throw new Error(e.error || `HTTP ${res.status}`)
+        throw new Error(e.error || describeHttpError(res.status))
       }
 
       const data = await res.json()
@@ -167,11 +218,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const safeCount = Math.min(Math.max(parseInt(String(count)) || 5, 1), 10)
       const params = new URLSearchParams({ q: query, count: String(safeCount) })
 
-      const res = await fetch(`${SERVER_URL}/images?${params}`)
+      const res = await getPaidFetch()(`${SERVER_URL}/images?${params}`)
 
       if (!res.ok) {
         const e: any = await res.json().catch(() => ({}))
-        throw new Error(e.error || `HTTP ${res.status}`)
+        throw new Error(e.error || describeHttpError(res.status))
       }
 
       const data: any = await res.json()
@@ -207,11 +258,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const params = new URLSearchParams({ q: query, count: String(safeCount) })
       if (freshness) params.set('freshness', freshness)
 
-      const res = await fetch(`${SERVER_URL}/news?${params}`)
+      const res = await getPaidFetch()(`${SERVER_URL}/news?${params}`)
 
       if (!res.ok) {
         const e: any = await res.json().catch(() => ({}))
-        throw new Error(e.error || `HTTP ${res.status}`)
+        throw new Error(e.error || describeHttpError(res.status))
       }
 
       const data: any = await res.json()
