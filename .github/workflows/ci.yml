@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same branch to save runner time.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # A clean install is deliberate (#140): a stale node_modules can mask a
+      # genuinely missing runtime dependency, which is the exact failure this
+      # job exists to catch.
+      - name: Clean install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      # Builds, serves the real dist/ with vite preview, and boots the API
+      # server to assert both actually respond. A bundle that compiles but
+      # cannot boot fails here rather than in production.
+      - name: Production boot smoke test
+        run: ./scripts/smoke-test.sh
+        env:
+          SMOKE_SKIP_BUILD: '1'

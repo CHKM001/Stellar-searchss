@@ -397,7 +397,30 @@ const signedAuthEntry = Buffer.from(raw as unknown as Uint8Array).toString('base
 
 ## Testing
 
-Currently the project relies on manual testing. We are actively adding automated tests — see the open [testing issues](https://github.com/Emmy123222/Stellar-Search/issues?q=is%3Aopen+label%3Atesting). If you are adding a new hook or server route, please include tests.
+Automated tests are landing steadily — see the open [testing issues](https://github.com/Emmy123222/Stellar-Search/issues?q=is%3Aopen+label%3Atesting). If you are adding a new hook or server route, please include tests.
+
+### Production boot smoke test
+
+`npm run build` passing does not mean the built app works: a missing runtime
+dependency (this repo has shipped with both `sonner` and `recharts` absent from
+`package.json`) typechecks and builds, then throws at runtime. CI now closes that
+gap by booting what it just built.
+
+```bash
+npm run build
+./scripts/smoke-test.sh                    # build, then check both surfaces
+SMOKE_SKIP_BUILD=1 ./scripts/smoke-test.sh  # check an existing dist/
+```
+
+The script serves `dist/` with `vite preview` and asserts the served page has its
+`#root` mount node and references a fetchable JS bundle, then starts the API
+server with `tsx` and asserts `/health` returns `status: "ok"`. It exits
+non-zero on any failure, so a bundle that compiles but cannot boot fails CI.
+
+Ports default to 4173 (preview) and 3987 (API) and can be overridden with
+`SMOKE_PREVIEW_PORT` / `SMOKE_API_PORT`. The API check uses placeholder
+`GROQ_API_KEY` / `SERPER_API_KEY` values so it needs no real credentials —
+`/health` does not call those providers.
 
 ### Manual testing checklist
 
