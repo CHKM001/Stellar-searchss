@@ -1,5 +1,6 @@
 import { Zap } from 'lucide-react'
 import { STELLAR_EXPERT_URL, IS_MAINNET } from '../../lib/stellar'
+import { ExternalLink } from '../ui/ExternalLink'
 
 const LINKS = [
   { label: 'x402.org',         href: 'https://x402.org' },
@@ -25,15 +26,13 @@ export function Footer() {
         </div>
         <div className="flex items-center gap-5">
           {LINKS.map(({ label, href }) => (
-            <a
+            <ExternalLink
               key={label}
               href={href}
-              target="_blank"
-              rel="noopener noreferrer"
               className="font-display text-xs text-white/20 hover:text-neon-cyan/60 transition-colors hidden sm:inline"
             >
               {label}
-            </a>
+            </ExternalLink>
           ))}
         </div>
       </div>

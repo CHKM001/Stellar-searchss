@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ExternalLink, Star, Clock, Sparkles, Search } from 'lucide-react'
+import { ExternalLink as ExternalLinkIcon, Star, Clock, Sparkles, Search } from 'lucide-react'
 import type { SearchResult } from '../../hooks/useSearch'
+import { ExternalLink } from '../ui/ExternalLink'
+
+const MotionExternalLink = motion(ExternalLink)
 
 interface Props {
   results: SearchResult[]
@@ -185,11 +188,9 @@ export function SearchResults({ results, query, isLoading }: Props) {
       </AnimatePresence>
 
       {results.map((r, i) => (
-        <motion.a
+        <MotionExternalLink
           key={r.id}
           href={r.url}
-          target="_blank"
-          rel="noopener noreferrer"
           role="article"
           aria-label={r.title}
           initial={{ opacity: 0, y: 16 }}
@@ -243,7 +244,7 @@ export function SearchResults({ results, query, isLoading }: Props) {
             </div>
 
             <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center border border-white/8 text-white/25 group-hover:text-neon-cyan group-hover:border-neon-cyan/30 transition-all mt-0.5">
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLinkIcon className="w-3.5 h-3.5" />
             </div>
           </div>
 
@@ -257,7 +258,7 @@ export function SearchResults({ results, query, isLoading }: Props) {
               style={{ background: 'linear-gradient(90deg, rgba(0,245,255,0.6), rgba(0,245,255,0.15))' }}
             />
           </div>
-        </motion.a>
+        </MotionExternalLink>
       ))}
     </motion.div>
   )
