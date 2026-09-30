@@ -7,9 +7,10 @@ import {
 import type { WalletState, StellarTransaction } from '../../hooks/useFreighterWallet'
 import {
   truncateAddress, truncateHash,
-  explorerAccountUrl, explorerTxUrl, formatTimeAgo,
-  IS_MAINNET, EXPECTED_WALLET_NETWORK, AMOUNT_USDC
+  explorerAccountUrl, explorerTxUrl, explorerAssetUrl, explorerContractUrl, formatTimeAgo,
+  IS_MAINNET, EXPECTED_WALLET_NETWORK, AMOUNT_USDC, USDC_ISSUER, USDC_CONTRACT
 } from '../../lib/stellar'
+import { CopyableAddress } from '../ui'
 
 interface Props {
   wallet: WalletState
@@ -150,6 +151,23 @@ export function WalletPanel({
                   <p className="font-display text-lg text-neon-cyan mt-0.5">{wallet.xlmBalance}</p>
                   <p className="font-display text-white/25 mt-0.5" style={{ fontSize: '9px' }}>for gas fees</p>
                 </div>
+              </div>
+
+              {/* Active network assets — lets the user verify the exact USDC being spent */}
+              <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
+                <p className="font-display text-[9px] text-white/30 tracking-widest">
+                  ACTIVE USDC · {IS_MAINNET ? 'MAINNET' : 'TESTNET'}
+                </p>
+                <CopyableAddress
+                  label="Issuer"
+                  value={USDC_ISSUER}
+                  href={explorerAssetUrl('USDC', USDC_ISSUER)}
+                />
+                <CopyableAddress
+                  label="Contract"
+                  value={USDC_CONTRACT}
+                  href={explorerContractUrl(USDC_CONTRACT)}
+                />
               </div>
 
               {wallet.error && (
