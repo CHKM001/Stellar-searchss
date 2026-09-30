@@ -15,8 +15,9 @@ Everything after this section is reference material for when you need it.
 ### 1. Clone and install (~4 min)
 
 ```bash
-git clone https://github.com/<your-username>/Stellar-Search.git
-cd Stellar-Search
+# Fork the repo on GitHub first, then clone your fork:
+git clone https://github.com/<your-username>/Stellar-searchss.git
+cd Stellar-searchss        # note: the directory is Stellar-searchss, not stellar-search
 npm install          # Node 18+ and npm 9+ required
 ```
 
@@ -65,17 +66,17 @@ npx tsc --noEmit
 
 | ✅ Works with no wallet | ⛔ Needs Freighter + funded testnet USDC |
 |---|---|
-| Everything in `src/` — pages, components, hooks, styling, copy, layout | `/search` (the 0.001 USDC paid route) and anything that calls it |
-| `npm run dev`, `npm run build`, `npx tsc --noEmit` | `src/hooks/useSearch.ts`, `src/hooks/useFreighterWallet.ts`, `src/components/wallet/WalletPanel.tsx` |
-| `GET /health` and `GET /ai/chat` on the backend | `src/pages/DashboardPage.tsx` (reads live Horizon tx history) |
-| Docs, README, CONTRIBUTING, issue triage, tests | `npm run test:search`, MCP payment tools |
+| Everything in `src/` — pages, components, styling, copy, layout | `/search` (the 0.001 USDC paid route) and anything that calls it |
+| `npm run setup`, `npm run dev`, `npm run build`, `npx tsc --noEmit` | `src/hooks/useSearch.ts`, `src/hooks/useFreighterWallet.ts`, `src/components/wallet/WalletPanel.tsx` |
+| `npm run test:search` — it signs no payment, it asserts the `402` | MCP tools — `web_search` pays via x402 |
+| `GET /health`, `GET /ai/chat`, docs, README, CONTRIBUTING, issue triage | `src/pages/DashboardPage.tsx` (reads live Horizon tx history) |
 
 If your change never touches the payment flow, you never need to install Freighter or create a Stellar account. The full wallet walkthrough is in [Local Development Setup](#local-development-setup).
 
 ### 6. Find something to work on
 
-- **[Good first issues](https://github.com/Emmy123222/Stellar-Search/issues?q=is%3Aopen+label%3A%22good+first+issue%22)** — scoped, self-contained, with clear acceptance criteria.
-- [All open issues](https://github.com/Emmy123222/Stellar-Search/issues) — the backlog has 50+ scoped ideas.
+- **[Good first issues](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues?q=is%3Aopen+label%3A%22good+first+issue%22)** — scoped, self-contained, with clear acceptance criteria.
+- [All open issues](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues) — the backlog has 50+ scoped ideas.
 - Comment _"I'd like to work on this"_ on the issue before you start, so two people do not build the same thing.
 
 Then branch, commit and open a PR — the conventions are in [Development Workflow](#development-workflow) and [Submitting a Pull Request](#submitting-a-pull-request).
@@ -167,8 +168,8 @@ Before you begin, make sure you have:
 
 ```bash
 # Fork the repo on GitHub first, then:
-git clone https://github.com/<your-username>/Stellar-Search.git
-cd Stellar-Search
+git clone https://github.com/<your-username>/Stellar-searchss.git
+cd Stellar-searchss
 ```
 
 ### 2. Install dependencies
@@ -237,7 +238,7 @@ Open `http://localhost:5173` in your browser.
 # Health check — should return { "status": "ok", ... }
 curl http://localhost:3001/health | jq .
 
-# Optional: end-to-end payment test (requires .env with all keys set)
+# Checks the x402 gate on /search (needs the server running, no wallet needed)
 npm run test:search "Stellar blockchain"
 ```
 
@@ -246,7 +247,7 @@ npm run test:search "Stellar blockchain"
 ## Project Structure
 
 ```
-stellar-search/
+Stellar-searchss/
 │
 ├── src/                        # React 18 frontend (TypeScript)
 │   ├── components/
@@ -279,6 +280,7 @@ stellar-search/
 │   └── index.ts                # MCP tools: web_search, ai_summarize, check_balance
 │
 ├── scripts/
+│   ├── setup.sh                # Backs `npm run setup`
 │   └── test-search.ts          # End-to-end CLI test
 │
 ├── .env.example                # Template — copy to .env
@@ -301,7 +303,7 @@ stellar-search/
 
 ### Pick an issue
 
-Browse [open issues](https://github.com/Emmy123222/Stellar-Search/issues). Issues labelled **good first issue** are specifically chosen for first-time contributors — they are scoped, self-contained, and have clear acceptance criteria.
+Browse [open issues](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues). Issues labelled **good first issue** are specifically chosen for first-time contributors — they are scoped, self-contained, and have clear acceptance criteria.
 
 Comment on the issue before you start: _"I'd like to work on this"_ — this avoids duplicate effort.
 
@@ -419,7 +421,7 @@ When you open a bug, include:
 
 - Explain the **problem** you are solving, not just the solution you have in mind.
 - If the feature involves the payment flow or blockchain state, describe how edge cases (network error, wallet rejection, insufficient balance) should behave.
-- Check the [open issues](https://github.com/Emmy123222/Stellar-Search/issues) first — the backlog already has 50+ scoped ideas waiting for contributors.
+- Check the [open issues](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues) first — the backlog already has 50+ scoped ideas waiting for contributors.
 
 ---
 
@@ -474,7 +476,7 @@ const signedAuthEntry = Buffer.from(raw as unknown as Uint8Array).toString('base
 
 ## Testing
 
-Currently the project relies on manual testing. We are actively adding automated tests — see the open [testing issues](https://github.com/Emmy123222/Stellar-Search/issues?q=is%3Aopen+label%3Atesting). If you are adding a new hook or server route, please include tests.
+Currently the project relies on manual testing. We are actively adding automated tests — see the open [testing issues](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues?q=is%3Aopen+label%3Atesting). If you are adding a new hook or server route, please include tests.
 
 ### Manual testing checklist
 
@@ -503,7 +505,7 @@ npx tsc --noEmit
 ### End-to-end test script
 
 ```bash
-# Requires all .env keys to be set and server running
+# Server must be running. Signs no payment — without a wallet it just reports the 402
 npm run test:search "Stellar blockchain"
 ```
 
@@ -541,7 +543,7 @@ npm run test:search "Stellar blockchain"
 
 ## Getting Help
 
-- **Bug or question about the code?** Open a [GitHub Issue](https://github.com/Emmy123222/Stellar-Search/issues/new).
+- **Bug or question about the code?** Open a [GitHub Issue](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues/new).
 - **Something in this guide is wrong or unclear?** Open a PR fixing it — contributions to docs are just as valuable as code.
 - **x402 protocol questions?** See the [official x402 docs](https://x402.org) and the [Stellar agentic payments guide](https://developers.stellar.org/docs/build/agentic-payments/x402/built-on-stellar).
 - **Freighter API reference?** [Stellar Freighter docs](https://docs.freighter.app).
