@@ -76,7 +76,18 @@ export function useSearch(walletAddress: string | null = null) {
     setSession({ query, results: [], txHash: null, paidAmount: null, status: 'searching', step: 1, suggestions: [] })
 
     const t0     = Date.now()
-    const params = new URLSearchParams({ q: query, count: String(count), suggestions: '1' })
+    const params = new URLSearchParams({ q: query, count: String(count) })
+
+    const fetchAsyncSuggestions = (q: string) => {
+      fetch(`${SERVER_URL}/suggestions?q=${encodeURIComponent(q)}`)
+        .then(res => (res.ok ? res.json() : null))
+        .then(suggData => {
+          if (suggData?.suggestions?.length) {
+            setSession(prev => (prev.query === q ? { ...prev, suggestions: suggData.suggestions } : prev))
+          }
+        })
+        .catch(err => console.warn('[suggestions] Async fetch error:', err))
+    }
 
     const advance = (step: PaymentStep) =>
       setSession(prev => ({ ...prev, step }))
@@ -141,10 +152,12 @@ export function useSearch(walletAddress: string | null = null) {
       if (firstRes.status !== 402) {
         if (!firstRes.ok) throw new Error(`Server error ${firstRes.status}`)
         const data = await firstRes.json()
-        return setSession({
+        setSession({
           query, results: data.results ?? [], txHash: null,
           paidAmount: null, status: 'complete', step: 6, durationMs: Date.now() - t0, suggestions: data.suggestions ?? [],
         })
+        fetchAsyncSuggestions(query)
+        return
       }
 
       // Flow step 2 — parse the PAYMENT-REQUIRED header
@@ -195,6 +208,7 @@ export function useSearch(walletAddress: string | null = null) {
         durationMs:  Date.now() - t0,
         suggestions: data.suggestions ?? [],
       })
+      fetchAsyncSuggestions(query)
 
       if (data.txHash) {
         toast.success(
