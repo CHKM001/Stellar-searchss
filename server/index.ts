@@ -365,7 +365,7 @@ app.get('/suggestions', async (req: Request, res: Response) => {
 
   try {
     const suggCompletion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'qwen/qwen3.8-27b',
       messages: [
         {
           role: 'system',
@@ -637,7 +637,7 @@ app.post('/ai/chat', freeRouteLimiter, async (req: Request, res: Response) => {
   if (!wantsStream) {
     try {
       const completion = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.8-27b',
         messages: groqMessages,
         max_tokens:  512,
         temperature: 0.7,
@@ -677,7 +677,7 @@ app.post('/ai/chat', freeRouteLimiter, async (req: Request, res: Response) => {
   try {
     const stream = await groq.chat.completions.create(
       {
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.8-27b',
         messages: groqMessages,
         max_tokens:  512,
         temperature: 0.7,
@@ -690,7 +690,7 @@ app.post('/ai/chat', freeRouteLimiter, async (req: Request, res: Response) => {
       const delta = chunk.choices[0]?.delta?.content
       if (delta) sendEvent('delta', { content: delta })
     }
-    sendEvent('done', { model: 'llama-3.3-70b-versatile' })
+    sendEvent('done', { model: 'qwen/qwen3.8-27b' })
     res.end()
   } catch (err: any) {
     if (controller.signal.aborted) return res.end()
