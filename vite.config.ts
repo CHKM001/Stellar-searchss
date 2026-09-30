@@ -2,6 +2,19 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  test: {
+    environment: 'node',
+    globals: true,
+    include: ['**/*.{test,spec}.{ts,tsx,js,jsx}'],
+    environmentMatchGlobs: [
+      ['**/*.dom.{test,spec}.{ts,tsx,js,jsx}', 'jsdom'],
+      ['src/**/*.{test,spec}.{ts,tsx,js,jsx}', 'jsdom'],
+    ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+    },
+  },
   plugins: [react()],
   // Required for @stellar/stellar-sdk and @stellar/freighter-api in browser
   define: {
