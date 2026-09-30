@@ -12,7 +12,7 @@ import {
   getNetwork,
 } from '@stellar/freighter-api'
 import { Horizon } from '@stellar/stellar-sdk'
-import { HORIZON_URL, USDC_ISSUER } from '../lib/stellar'
+import { HORIZON_URL, USDB_ISSUER } from '../lib/stellar'
 
 export interface WalletState {
   publicKey: string | null
@@ -36,7 +36,50 @@ export interface StellarTransaction {
   memo?: string
 }
 
+export interface SearchSession {
+  query: string
+  results: any[]
+}
+
+export interface Receipt {
+  id: string
+  txHash: string
+  amount: string
+  asset: string
+  timestamp: string
+  memo?: string
+}
+
+export const RECEIPTS_STORAGE_KEY = 'stellar-receipts'
+
 const horizon = new Horizon.Server(HORIZON_URL)
+
+function loadReceipts(): Receipt[] {
+  try {
+    const raw = localStorage.getItem(RECEIPTS_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveReceipts(receipts: Receipt[]) {
+  try {
+    localStorage.setItem(RECEIPTS_STORAGE_KEY, JSON.stringify(receipts))
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+function clearReceipts() {
+  try {
+    localStorage.removeItem(RECEIPTS_STORAGE_KEY)
+  } catch {
+    // localStorage unavailable
+  }
+}
 
 export function useFreighterWallet() {
   const [wallet, setWallet] = useState<WalletState>({
@@ -50,6 +93,8 @@ export function useFreighterWallet() {
   })
   const [transactions, setTransactions] = useState<StellarTransaction[]>([])
   const [txLoading, setTxLoading] = useState(false)
+  const [receipts, setReceipts] = useState<Receipt[]>(loadReceipts)
+  const [searchSession, setSearchSession] = useState<SearchSession | null>(null)
 
   // Fetch real balances from Horizon
   const fetchBalances = useCallback(async (publicKey: string) => {
@@ -65,7 +110,7 @@ export function useFreighterWallet() {
         } else if (
           balance.asset_type === 'credit_alphanum4' &&
           (balance as any).asset_code === 'USDC' &&
-          (balance as any).asset_issuer === USDC_ISSUER
+          (balance as any).asset_issuer === USDB_ISSUER
         ) {
           usdc = parseFloat(balance.balance).toFixed(6)
         }
@@ -96,7 +141,7 @@ export function useFreighterWallet() {
         .limit(15)
         .call()
 
-      const txs: StellarTransaction[] = ops.records
+      const txs = ops.records
         .filter((op: any) => op.type === 'payment' || op.type === 'create_account')
         .map((op: any) => ({
           id: op.id,
@@ -168,7 +213,7 @@ export function useFreighterWallet() {
     }
   }, [fetchBalances, fetchTransactions])
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback((clearStoredReceipts = false) => {
     setWallet({
       publicKey: null,
       connected: false,
@@ -179,6 +224,24 @@ export function useFreighterWallet() {
       error: null,
     })
     setTransactions([])
+    setSearchSession(null)
+    if (clearStoredReceipts) {
+      clearReceipts()
+      setReceipts([])
+    }
+  }, [])
+
+  const addReceipt = useCallback((receipt: Receipt) => {
+    setReceipts(prev => {
+      const next = [receipt, ...prev]
+      saveReceipts(next)
+      return next
+    })
+  }, [])
+
+  const clearStoredReceipts = useCallback(() => {
+    clearReceipts()
+    setReceipts([])
   }, [])
 
   const refresh = useCallback(async () => {
@@ -218,6 +281,11 @@ export function useFreighterWallet() {
     wallet,
     transactions,
     txLoading,
+    receipts,
+    searchSession,
+    setSearchSession,
+    addReceipt,
+    clearStoredReceipts,
     connect,
     disconnect,
     refresh,
