@@ -397,6 +397,10 @@ const signedAuthEntry = Buffer.from(raw as unknown as Uint8Array).toString('base
 
 ## Testing
 
+### Dependency security audit
+
+The CI workflow runs `npm audit --audit-level=high` on pull requests and weekly. High- and critical-severity advisories block CI. Follow the [dependency audit policy](docs/dependency-audit-policy.md) for remediation and the explicit process for an unfixable advisory; do not silently suppress audit findings.
+
 Currently the project relies on manual testing. We are actively adding automated tests — see the open [testing issues](https://github.com/Emmy123222/Stellar-Search/issues?q=is%3Aopen+label%3Atesting). If you are adding a new hook or server route, please include tests.
 
 ### Manual testing checklist
