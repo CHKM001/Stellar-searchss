@@ -26,9 +26,12 @@ import {
 dotenv.config()
 
 const SERVER_URL = process.env.SEARCH_API_URL || 'http://localhost:3001'
-const GROQ_API_KEY = process.env.GROQ_API_KEY!
+const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
 
-const groq = new Groq({ apiKey: GROQ_API_KEY })
+const groq = new Groq({
+  apiKey: GROQ_API_KEY || 'mock-key',
+  fetch: (url: any, init: any) => (globalThis.fetch as any)(url, init),
+})
 
 // ─── MCP server ───────────────────────────────────────────────────────────
 const server = new Server(
@@ -36,7 +39,7 @@ const server = new Server(
   { capabilities: { tools: {} } },
 )
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+export const listToolsHandler = async () => ({
   tools: [
     {
       name: 'web_search',
@@ -114,14 +117,14 @@ Use for breaking stories, current events, and time-sensitive reporting.`,
       },
     },
   ],
-}))
+})
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+export const callToolHandler = async (request: { params: { name: string; arguments?: Record<string, any> } }) => {
   const { name, arguments: args } = request.params
 
   // ── web_search ────────────────────────────────────────────────────────
   if (name === 'web_search') {
-    const { query, count = 5, freshness } = args as { query: string; count?: number; freshness?: string }
+    const { query, count = 5, freshness } = (args || {}) as { query: string; count?: number; freshness?: string }
 
     try {
       const params = new URLSearchParams({ q: query, count: String(count) })
@@ -133,18 +136,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const res = await fetch(`${SERVER_URL}/search?${params}`)
 
       if (!res.ok) {
-        const e = await res.json().catch(() => ({}))
+        const e: any = await res.json().catch(() => ({}))
         throw new Error(e.error || `HTTP ${res.status}`)
       }
 
-      const data = await res.json()
-      const formatted = data.results
+      const data: any = await res.json()
+      const formatted = (data.results || [])
         .map((r: any, i: number) => `${i + 1}. **${r.title}**\n   ${r.url}\n   ${r.description}`)
         .join('\n\n')
 
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: [
             `🔍 Results for: "${query}"`,
             `💰 Paid: ${data.paidAmount} ${data.currency} on ${data.network}`,
@@ -155,13 +158,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }],
       }
     } catch (err: any) {
-      return { content: [{ type: 'text', text: `Search failed: ${err.message}` }], isError: true }
+      return { content: [{ type: 'text' as const, text: `Search failed: ${err.message}` }], isError: true }
     }
   }
 
   // ── image_search ──────────────────────────────────────────────────────
   if (name === 'image_search') {
-    const { query, count = 5 } = args as { query: string; count?: number }
+    const { query, count = 5 } = (args || {}) as { query: string; count?: number }
 
     try {
       const safeCount = Math.min(Math.max(parseInt(String(count)) || 5, 1), 10)
@@ -175,13 +178,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       const data: any = await res.json()
-      const formatted = data.results
+      const formatted = (data.results || [])
         .map((r: any, i: number) => `${i + 1}. **${r.title}**\n   Image: ${r.imageUrl}\n   Source: ${r.sourceUrl} (${r.source})`)
         .join('\n\n')
 
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: [
             `🖼️  Image results for: "${query}"`,
             `💰 Paid: ${data.paidAmount} ${data.currency} on ${data.network}`,
@@ -192,13 +195,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }],
       }
     } catch (err: any) {
-      return { content: [{ type: 'text', text: `Image search failed: ${err.message}` }], isError: true }
+      return { content: [{ type: 'text' as const, text: `Image search failed: ${err.message}` }], isError: true }
     }
   }
 
   // ── news_search ───────────────────────────────────────────────────────
   if (name === 'news_search') {
-    const { query, count = 10, freshness } = args as {
+    const { query, count = 10, freshness } = (args || {}) as {
       query: string; count?: number; freshness?: string
     }
 
@@ -215,7 +218,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       const data: any = await res.json()
-      const formatted = data.results
+      const formatted = (data.results || [])
         .map((r: any, i: number) => {
           const date = r.publishedAt ? ` · ${r.publishedAt}` : ''
           return `${i + 1}. **${r.title}** (${r.source}${date})\n   ${r.url}\n   ${r.snippet}`
@@ -224,7 +227,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: [
             `📰 News results for: "${query}"`,
             `💰 Paid: ${data.paidAmount} ${data.currency} on ${data.network}`,
@@ -235,13 +238,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }],
       }
     } catch (err: any) {
-      return { content: [{ type: 'text', text: `News search failed: ${err.message}` }], isError: true }
+      return { content: [{ type: 'text' as const, text: `News search failed: ${err.message}` }], isError: true }
     }
   }
 
   // ── ai_summarize ──────────────────────────────────────────────────────
   if (name === 'ai_summarize') {
-    const { text, instruction = 'summarise' } = args as { text: string; instruction?: string }
+    const { text, instruction = 'summarise' } = (args || {}) as { text: string; instruction?: string }
 
     try {
       const completion = await groq.chat.completions.create({
@@ -255,25 +258,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       })
 
       const content = completion.choices[0]?.message?.content || 'No response.'
-      return { content: [{ type: 'text', text: content }] }
+      return { content: [{ type: 'text' as const, text: content }] }
     } catch (err: any) {
-      return { content: [{ type: 'text', text: `Groq error: ${err.message}` }], isError: true }
+      return { content: [{ type: 'text' as const, text: `Groq error: ${err.message}` }], isError: true }
     }
   }
 
   // ── check_balance ─────────────────────────────────────────────────────
   if (name === 'check_balance') {
-    const { address } = args as { address: string }
+    const { address } = (args || {}) as { address: string }
 
     try {
       const res = await fetch(`${HORIZON_URL}/accounts/${address}`)
       if (res.status === 404) throw new Error(`Account not found on Stellar ${STELLAR_NETWORK.split(':')[1]}`)
       if (!res.ok) throw new Error(`Horizon returned ${res.status}`)
 
-      const account = await res.json()
+      const account: any = await res.json()
       let xlm = '0', usdc = '0'
 
-      for (const b of account.balances) {
+      for (const b of account.balances || []) {
         if (b.asset_type === 'native') xlm = parseFloat(b.balance).toFixed(4)
         if (b.asset_type === 'credit_alphanum4' && b.asset_code === 'USDC' && b.asset_issuer === USDC_ISSUER) {
           usdc = parseFloat(b.balance).toFixed(6)
@@ -283,7 +286,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const queries = Math.floor(parseFloat(usdc) / parseFloat(AMOUNT_USDC))
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: [
             `💳 Stellar Account: ${address}`,
             `   USDC: ${usdc} (~${queries.toLocaleString()} searches remaining)`,
@@ -294,7 +297,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }],
       }
     } catch (err: any) {
-      return { content: [{ type: 'text', text: `Balance check failed: ${err.message}` }], isError: true }
+      return { content: [{ type: 'text' as const, text: `Balance check failed: ${err.message}` }], isError: true }
     }
   }
 
@@ -304,17 +307,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const res = await fetch(`${SERVER_URL}/health`)
       if (!res.ok) throw new Error(`Server health check returned ${res.status}`)
 
-      const stats = await res.json()
+      const stats: any = await res.json()
       
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: [
             `📊 StellarSearch Server Stats`,
-            `   Status:           ${stats.status.toUpperCase()}`,
+            `   Status:           ${String(stats.status || '').toUpperCase()}`,
             `   Network:          ${stats.network}`,
             `   Uptime:           ${stats.uptime}`,
-            `   Total Queries:    ${stats.totalQueries.toLocaleString()}`,
+            `   Total Queries:    ${stats.totalQueries?.toLocaleString?.() ?? stats.totalQueries}`,
             `   USDC Settled:     ${stats.totalUsdcSettled} USDC`,
             `   Avg Latency:      ${stats.avgLatencyMs}ms`,
             `   Price per Query:  ${stats.pricePerQuery}`,
@@ -324,13 +327,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }],
       }
     } catch (err: any) {
-      return { content: [{ type: 'text', text: `Failed to fetch server stats: ${err.message}` }], isError: true }
+      return { content: [{ type: 'text' as const, text: `Failed to fetch server stats: ${err.message}` }], isError: true }
     }
   }
 
-  return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true }
-})
+  return { content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }], isError: true }
+}
 
-const transport = new StdioServerTransport()
-await server.connect(transport)
-console.error('StellarSearch MCP server started')
+server.setRequestHandler(ListToolsRequestSchema, listToolsHandler)
+server.setRequestHandler(CallToolRequestSchema, callToolHandler)
+
+export { server }
+
+const isDirectRun = process.argv[1]?.replace(/\\/g, '/').endsWith('mcp-server/index.ts') ||
+  process.argv[1]?.replace(/\\/g, '/').endsWith('mcp-server/index.js')
+
+if (process.env.NODE_ENV !== 'test' && isDirectRun) {
+  const transport = new StdioServerTransport()
+  await server.connect(transport)
+  console.error('StellarSearch MCP server started')
+}
