@@ -5,6 +5,7 @@ import {
   Copy, CheckCheck, RefreshCw, LogOut, AlertCircle,
 } from 'lucide-react'
 import type { WalletState, StellarTransaction } from '../../hooks/useFreighterWallet'
+import { ExternalLink } from '../ui/ExternalLink'
 import {
   truncateAddress, truncateHash,
   explorerAccountUrl, explorerTxUrl, formatTimeAgo,
@@ -135,14 +136,14 @@ export function WalletPanel({
 
               {/* Address */}
               <div className="flex items-center gap-2 mb-3">
-                <a
+                <ExternalLink
                   href={explorerAccountUrl(wallet.publicKey!)}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  
+                  
                   className="font-mono text-xs text-white/40 hover:text-neon-cyan/70 transition-colors truncate flex-1"
                 >
                   {wallet.publicKey}
-                </a>
+                </ExternalLink>
                 <button onClick={copy} className="p-1 rounded text-white/30 hover:text-white/60 flex-shrink-0">
                   {copied
                     ? <CheckCheck className="w-3.5 h-3.5 text-neon-green" />
@@ -255,15 +256,15 @@ export function WalletPanel({
                           {tx.type.replace('_', ' ')}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <a
+                          <ExternalLink
                             href={explorerTxUrl(tx.hash)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            
+                            
                             className="font-mono text-white/25 hover:text-neon-cyan transition-colors flex items-center gap-1"
                             style={{ fontSize: '10px' }}
                           >
-                            {truncateHash(tx.hash, 6)} <ExternalLink className="w-2 h-2" />
-                          </a>
+                            {truncateHash(tx.hash, 6)} <ExternalLinkIcon className="w-2 h-2" />
+                          </ExternalLink>
                           <span className="text-white/20" style={{ fontSize: '10px' }}>
                             {formatTimeAgo(tx.timestamp)}
                           </span>
@@ -281,14 +282,14 @@ export function WalletPanel({
             {/* Actions */}
             <div className="p-3 pt-0 flex gap-2">
               {IS_MAINNET ? (
-                <a
+                <ExternalLink
                   href="https://www.circle.com/en/usdc"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  
+                  
                   className="flex-1 py-2 rounded-lg border border-neon-amber/20 text-center font-display text-[10px] text-neon-amber/70 hover:bg-neon-amber/5 transition-colors uppercase tracking-widest"
                 >
                   Buy USDC ↗
-                </a>
+                </ExternalLink>
               ) : (
                 <a
                   href="https://lab.stellar.org/account/fund"
@@ -297,7 +298,7 @@ export function WalletPanel({
                   className="flex-1 py-2 rounded-lg border border-neon-cyan/20 text-center font-display text-[10px] text-neon-cyan/70 hover:bg-neon-cyan/5 transition-colors uppercase tracking-widest"
                 >
                   Fund Testnet ↗
-                </a>
+                </ExternalLink>
               )}
               <button
                 onClick={() => { onDisconnect(); setOpen(false) }}
