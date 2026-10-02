@@ -1,4 +1,4 @@
-import Zap from 'lucide-react/dist/esm/icons/zap'
+import { Zap } from 'lucide-react'
 import { STELLAR_EXPERT_URL, IS_MAINNET } from '../../lib/stellar'
 
 // Injected by Vite at build time from package.json → version.
