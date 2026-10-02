@@ -65,20 +65,37 @@ export interface SearchSession {
   error?: string
   durationMs?: number
   suggestions: string[]
+  isLoadingSuggestions?: boolean
 }
 
 export function useSearch(walletAddress: string | null = null) {
   const [session, setSession] = useState<SearchSession>({
-    query: '', results: [], txHash: null, paidAmount: null, status: 'idle', suggestions: [],
+    query: '', results: [], txHash: null, paidAmount: null, status: 'idle', suggestions: [], isLoadingSuggestions: false,
   })
 
   const search = useCallback(async (query: string, count = 5) => {
     if (!query.trim()) return
 
-    setSession({ query, results: [], txHash: null, paidAmount: null, status: 'searching', step: 1, suggestions: [] })
+    setSession({ query, results: [], txHash: null, paidAmount: null, status: 'searching', step: 1, suggestions: [], isLoadingSuggestions: false })
 
     const t0     = Date.now()
-    const params = new URLSearchParams({ q: query, count: String(count), suggestions: '1' })
+    const params = new URLSearchParams({ q: query, count: String(count) })
+
+    const fetchAsyncSuggestions = (q: string) => {
+      fetch(`${SERVER_URL}/suggestions?q=${encodeURIComponent(q)}`)
+        .then(res => (res.ok ? res.json() : null))
+        .then(suggData => {
+          setSession(prev => (prev.query === q ? {
+            ...prev,
+            suggestions: suggData?.suggestions || [],
+            isLoadingSuggestions: false,
+          } : prev))
+        })
+        .catch(err => {
+          console.warn('[suggestions] Async fetch error:', err)
+          setSession(prev => (prev.query === q ? { ...prev, isLoadingSuggestions: false } : prev))
+        })
+    }
 
     const advance = (step: PaymentStep) =>
       setSession(prev => ({ ...prev, step }))
@@ -143,10 +160,13 @@ export function useSearch(walletAddress: string | null = null) {
       if (firstRes.status !== 402) {
         if (!firstRes.ok) throw new Error(`Server error ${firstRes.status}`)
         const data = await firstRes.json()
-        return setSession({
+        setSession({
           query, results: data.results ?? [], txHash: null,
           paidAmount: null, status: 'complete', step: 6, durationMs: Date.now() - t0, suggestions: data.suggestions ?? [],
+          isLoadingSuggestions: true,
         })
+        fetchAsyncSuggestions(query)
+        return
       }
 
       // Flow step 2 — parse the PAYMENT-REQUIRED header
@@ -196,7 +216,9 @@ export function useSearch(walletAddress: string | null = null) {
         step:        6,
         durationMs:  Date.now() - t0,
         suggestions: data.suggestions ?? [],
+        isLoadingSuggestions: true,
       })
+      fetchAsyncSuggestions(query)
 
       if (data.txHash) {
         toast.success(

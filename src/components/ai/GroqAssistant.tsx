@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { m, AnimatePresence, LazyMotion, domAnimation } from 'framer-motion'
-import Bot from 'lucide-react/dist/esm/icons/bot'
-import Send from 'lucide-react/dist/esm/icons/send'
-import X from 'lucide-react/dist/esm/icons/x'
+import { Bot, Send, X } from 'lucide-react'
 import type { SearchResult } from '../../hooks/useSearch'
 
 interface Message {
