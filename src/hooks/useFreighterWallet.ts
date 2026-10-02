@@ -507,6 +507,40 @@ if (connected.error) {
     check()
   }, [fetchWalletData])
 
+  // Freighter does not emit a reliable account-change event in every browser.
+  // Poll while connected so switching accounts updates all account-scoped data.
+  useEffect(() => {
+    if (!wallet.connected || !wallet.publicKey) return
+
+    let checking = false
+    const checkAddress = async () => {
+      if (checking) return
+      checking = true
+      try {
+        const result = await getAddress()
+        if (!result.error && result.address && result.address !== wallet.publicKey) {
+          const nextAddress = result.address
+          setWallet(prev => ({ ...prev, publicKey: nextAddress, error: null }))
+          setTransactions([])
+          setTxCursor(null)
+          setTxHasMore(false)
+          await fetchBalances(nextAddress)
+          await fetchTransactions(nextAddress)
+          toast.success('Freighter account switched', {
+            description: 'Balances and transaction history were refreshed.',
+          })
+        }
+      } catch (err) {
+        console.warn('Could not check the active Freighter account:', err)
+      } finally {
+        checking = false
+      }
+    }
+
+    const interval = window.setInterval(checkAddress, 4000)
+    return () => window.clearInterval(interval)
+  }, [wallet.connected, wallet.publicKey, fetchBalances, fetchTransactions])
+
   return {
     wallet,
     transactions,
