@@ -63,17 +63,18 @@ export interface SearchSession {
   error?: string
   durationMs?: number
   suggestions: string[]
+  isLoadingSuggestions?: boolean
 }
 
 export function useSearch(walletAddress: string | null = null) {
   const [session, setSession] = useState<SearchSession>({
-    query: '', results: [], txHash: null, paidAmount: null, status: 'idle', suggestions: [],
+    query: '', results: [], txHash: null, paidAmount: null, status: 'idle', suggestions: [], isLoadingSuggestions: false,
   })
 
   const search = useCallback(async (query: string, count = 5) => {
     if (!query.trim()) return
 
-    setSession({ query, results: [], txHash: null, paidAmount: null, status: 'searching', step: 1, suggestions: [] })
+    setSession({ query, results: [], txHash: null, paidAmount: null, status: 'searching', step: 1, suggestions: [], isLoadingSuggestions: false })
 
     const t0     = Date.now()
     const params = new URLSearchParams({ q: query, count: String(count) })
@@ -82,11 +83,16 @@ export function useSearch(walletAddress: string | null = null) {
       fetch(`${SERVER_URL}/suggestions?q=${encodeURIComponent(q)}`)
         .then(res => (res.ok ? res.json() : null))
         .then(suggData => {
-          if (suggData?.suggestions?.length) {
-            setSession(prev => (prev.query === q ? { ...prev, suggestions: suggData.suggestions } : prev))
-          }
+          setSession(prev => (prev.query === q ? {
+            ...prev,
+            suggestions: suggData?.suggestions || [],
+            isLoadingSuggestions: false,
+          } : prev))
         })
-        .catch(err => console.warn('[suggestions] Async fetch error:', err))
+        .catch(err => {
+          console.warn('[suggestions] Async fetch error:', err)
+          setSession(prev => (prev.query === q ? { ...prev, isLoadingSuggestions: false } : prev))
+        })
     }
 
     const advance = (step: PaymentStep) =>
@@ -155,6 +161,7 @@ export function useSearch(walletAddress: string | null = null) {
         setSession({
           query, results: data.results ?? [], txHash: null,
           paidAmount: null, status: 'complete', step: 6, durationMs: Date.now() - t0, suggestions: data.suggestions ?? [],
+          isLoadingSuggestions: true,
         })
         fetchAsyncSuggestions(query)
         return
@@ -207,6 +214,7 @@ export function useSearch(walletAddress: string | null = null) {
         step:        6,
         durationMs:  Date.now() - t0,
         suggestions: data.suggestions ?? [],
+        isLoadingSuggestions: true,
       })
       fetchAsyncSuggestions(query)
 
