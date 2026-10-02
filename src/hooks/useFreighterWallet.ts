@@ -29,6 +29,7 @@ export interface WalletState {
   loading: boolean
   refreshing: boolean
   error: string | null
+fundingRequired: boolean
   hint: string | null
 }
 
@@ -110,6 +111,16 @@ function mapOperation(op: any): StellarTransaction {
     memo: op.transaction?.memo,
   }
 }
+
+const FUNDING_ERROR = 'This account is not funded yet'
+
+function isHorizon404(err: any): boolean {
+  if (!err) return false
+  if (err.response?.status === 404) return true
+  if (err.status === 404) return true
+  const message = String(err.message || '')
+  return /404/.test(message) || /not found/i.test(message)
+}
 export function useFreighterWallet() {
   const [wallet, setWallet] = useState<WalletState>({
     publicKey: null,
@@ -121,6 +132,7 @@ export function useFreighterWallet() {
     loading: false,
     refreshing: false,
     error: null,
+fundingRequired: false,
     hint: null,
   })
   const [transactions, setTransactions] = useState<StellarTransaction[]>([])
@@ -169,8 +181,20 @@ export function useFreighterWallet() {
         usdcBalance: usdc,
         usddTrustline: hasUsddTrustline,
         error: null,
+        fundingRequired: false,
       }))
     } catch (err: any) {
+console.error('Failed to load account from Horizon:', err)
+      if (isHorizon404(err)) {
+        setWallet(prev => ({
+          ...prev,
+          xlmBalance: '0',
+          usdcBalance: '0',
+          error: FUNDING_ERROR,
+          fundingRequired: true,
+        }))
+        return
+      }
       if (isRateLimitError(err)) {
         setWallet(prev => ({
           ...prev,
@@ -181,6 +205,7 @@ export function useFreighterWallet() {
       setWallet(prev => ({
         ...prev,
         error: err.message || 'Failed to load account',
+        fundingRequired: false,
       }))
     }
   }, [])
@@ -288,7 +313,7 @@ export function useFreighterWallet() {
 
   // Connect Freighter wallet
   const connect = useCallback(async () => {
-    setWallet(prev => ({ ...prev, loading: true, error: null, hint: null }))
+setWallet(prev => ({ ...prev, loading: true, error: null, fundingRequired: false, hint: null }))
 
     try {
       const connected = await isConnected()
@@ -318,6 +343,7 @@ export function useFreighterWallet() {
         network,
         loading: false,
         error: null,
+        fundingRequired: false,
       }))
 
       // Fetch live data after connect (balances + transactions in parallel)
@@ -328,7 +354,8 @@ export function useFreighterWallet() {
         loading: false,
         connected: false,
         error: err.message || 'Connection failed',
-        hint: err.message || 'Connection failed. Please check Freighter and try again.',
+hint: err.message || 'Connection failed. Please check Freighter and try again.',
+        fundingRequired: false,
       }))
     }
   }, [fetchWalletData])
@@ -344,6 +371,7 @@ export function useFreighterWallet() {
       loading: false,
       refreshing: false,
       error: null,
+fundingRequired: false,
       hint: null,
     })
     setTransactions([])
