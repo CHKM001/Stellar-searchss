@@ -44,6 +44,9 @@ import {
   AMOUNT_USDC,
   IS_MAINNET
 } from '../src/lib/constants'
+import { wrapFetchWithPayment, x402Client, type Network } from '@x402/fetch'
+import { ExactStellarScheme } from '@x402/stellar/exact/client'
+import { createEd25519Signer } from '@x402/stellar'
 
 dotenv.config()
 
@@ -554,10 +557,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const params = new URLSearchParams({ q: query, count: String(count) })
       if (freshness) params.set('freshness', freshness)
 
-      // The server's x402 middleware handles the full payment flow.
-      // In server-to-server mode the server needs a funded Stellar key.
-      // For MCP usage we call the server which itself holds the paying wallet.
-      const res = await fetch(`${SERVER_URL}/search?${params}`)
+      // The server is the *payee*: /search is guarded by its x402 middleware,
+      // so we pay with our own Stellar key via the wrapped fetch.
+      const res = await getPaidFetch()(`${SERVER_URL}/search?${params}`)
 
       if (!res.ok) {
         const e: any = await res.json().catch(() => ({}))
@@ -595,11 +597,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const params = new URLSearchParams({ q: query, count: String(safeCount) })
       if (freshness) params.set('freshness', freshness)
 
-      const res = await fetch(`${SERVER_URL}/images?${params}`)
+      const res = await getPaidFetch()(`${SERVER_URL}/images?${params}`)
 
       if (!res.ok) {
         const e: any = await res.json().catch(() => ({}))
-        throw new Error(e.error || `HTTP ${res.status}`)
+        throw new Error(e.error || describeHttpError(res.status))
       }
 
       const data: any = await res.json()
@@ -635,11 +637,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const params = new URLSearchParams({ q: query, count: String(safeCount) })
       if (freshness) params.set('freshness', freshness)
 
-      const res = await fetch(`${SERVER_URL}/news?${params}`)
+      const res = await getPaidFetch()(`${SERVER_URL}/news?${params}`)
 
       if (!res.ok) {
         const e: any = await res.json().catch(() => ({}))
-        throw new Error(e.error || `HTTP ${res.status}`)
+        throw new Error(e.error || describeHttpError(res.status))
       }
 
       const data: any = await res.json()
