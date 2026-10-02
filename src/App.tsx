@@ -4,6 +4,7 @@ import { AnimatedBackground, Navbar, LiveTicker, Footer } from './components/lay
 import { GroqAssistant }                       from './components/ai'
 import { SearchPage, DocsPage, DashboardPage } from './pages'
 import { useFreighterWallet, useSearch }       from './hooks'
+import { clearReceipts }                       from './lib/receipts'
 import { Toaster }                             from 'sonner'
 
 type Page = 'search' | 'docs' | 'dashboard'
@@ -56,6 +57,21 @@ export default function App() {
     [session.status, session.query, session.results],
   )
 
+  // Disconnect must not leave account-specific data behind on a shared
+  // machine. Reset the search session, then explicitly ask the user whether
+  // to also clear the localStorage receipts (issue: disconnect leaves
+  // receipts and session data behind).
+  const handleDisconnect = () => {
+    reset()
+    disconnect()
+    const shouldClear = window.confirm(
+      'Also clear stored payment receipts from this device?'
+    )
+    if (shouldClear) {
+      clearReceipts()
+    }
+  }
+
   return (
     <MotionConfig reducedMotion="user">
     <div className="min-h-screen relative text-white">
@@ -75,7 +91,7 @@ export default function App() {
           transactions={transactions}
           txLoading={txLoading}
           onConnect={connect}
-          onDisconnect={disconnect}
+          onDisconnect={handleDisconnect}
           onRefresh={refresh}
         />
 

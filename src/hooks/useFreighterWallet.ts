@@ -45,8 +45,53 @@ export interface StellarTransaction {
   memo?: string
 }
 
+export interface SearchSession {
+  query: string
+  results: any[]
+}
+
+export interface Receipt {
+  id: string
+  txHash: string
+  amount: string
+  asset: string
+  timestamp: string
+  memo?: string
+}
+
+export const RECEIPTS_STORAGE_KEY = 'stellar-receipts'
+
 export const DEFAULT_TX_PAGE_SIZE = 15
 const horizon = new Horizon.Server(NORIZON_URL)
+
+const horizon = new Horizon.Server(HORIZON_URL)
+
+function loadReceipts(): Receipt[] {
+  try {
+    const raw = localStorage.getItem(RECEIPTS_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveReceipts(receipts: Receipt[]) {
+  try {
+    localStorage.setItem(RECEIPTS_STORAGE_KEY, JSON.stringify(receipts))
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+function clearReceipts() {
+  try {
+    localStorage.removeItem(RECEIPTS_STORAGE_KEY)
+  } catch {
+    // localStorage unavailable
+  }
+}
 
 export const horizon = new Horizon.Server(HORIZON_URL)
 
@@ -137,6 +182,8 @@ fundingRequired: false,
   })
   const [transactions, setTransactions] = useState<StellarTransaction[]>([])
   const [txLoading, setTxLoading] = useState(false)
+const [receipts, setReceipts] = useState<Receipt[]>(loadReceipts)
+  const [searchSession, setSearchSession] = useState<SearchSession | null>(null)
   const [txLoadingMore, setTxLoadingMore] = useState(false)
   const [txCursor, setTxCursor] = useState<string | null>(null)
   const [txHasMore, setTxHasMore] = useState(false)
@@ -360,7 +407,7 @@ hint: err.message || 'Connection failed. Please check Freighter and try again.',
     }
   }, [fetchWalletData])
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback((clearStoredReceipts = false) => {
     setWallet({
       publicKey: null,
       connected: false,
@@ -375,8 +422,26 @@ fundingRequired: false,
       hint: null,
     })
     setTransactions([])
+setSearchSession(null)
     setTxCursor(null)
     setTxHasMore(false)
+    if (clearStoredReceipts) {
+      clearReceipts()
+      setReceipts([])
+    }
+  }, [])
+
+  const addReceipt = useCallback((receipt: Receipt) => {
+    setReceipts(prev => {
+      const next = [receipt, ...prev]
+      saveReceipts(next)
+      return next
+    })
+  }, [])
+
+  const clearStoredReceipts = useCallback(() => {
+    clearReceipts()
+    setReceipts([])
   }, [])
 
   const refresh = useCallback(async () => {
@@ -446,10 +511,15 @@ if (connected.error) {
     wallet,
     transactions,
     txLoading,
-    transactionError,
+transactionError,
     txLoadingMore,
     txHasMore,
     loadMoreTransactions,
+    receipts,
+    searchSession,
+    setSearchSession,
+    addReceipt,
+    clearStoredReceipts,
     connect,
     disconnect,
     refresh,
