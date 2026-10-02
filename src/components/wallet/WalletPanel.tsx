@@ -11,6 +11,7 @@ import {
   explorerAccountUrl, explorerTxUrl, formatTimeAgo,
   IS_MAINNET, EXPECTED_WALLET_NETWORK, AMOUNT_USDC, USDC_ISSUER
 } from '../../lib/stellar'
+import { CopyableAddress } from '../ui'
 
 interface Props {
   wallet: WalletState
