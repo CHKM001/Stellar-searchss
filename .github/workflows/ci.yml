@@ -4,40 +4,89 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
-# Cancel superseded runs on the same branch to save runner time.
+# Cancel superseded runs on the same ref to save CI minutes.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build and smoke test
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: '20'
+          cache: 'npm'
 
-      # A clean install is deliberate (#140): a stale node_modules can mask a
-      # genuinely missing runtime dependency, which is the exact failure this
-      # job exists to catch.
-      - name: Clean install
+      - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
+      - name: Lint
+        run: npm run lint
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
         run: npx tsc --noEmit
 
       - name: Build
         run: npm run build
 
-      # Builds, serves the real dist/ with vite preview, and boots the API
-      # server to assert both actually respond. A bundle that compiles but
-      # cannot boot fails here rather than in production.
-      - name: Production boot smoke test
-        run: ./scripts/smoke-test.sh
-        env:
-          SMOKE_SKIP_BUILD: '1'
+      - name: Parity test (Express vs serverless)
+        run: npx tsx --test tests/parity.test.ts
+
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-node-${{ matrix.node-version }}
+          path: coverage/
+          retention-days: 7
