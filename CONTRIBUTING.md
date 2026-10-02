@@ -98,6 +98,7 @@ Then branch, commit and open a PR — the conventions are in [Development Workfl
 11. [Testing](#testing)
 12. [Common Pitfalls](#common-pitfalls)
 13. [Getting Help](#getting-help)
+14. [Changelog & Releases](#changelog--releases)
 
 ---
 
@@ -156,7 +157,7 @@ Before you begin, make sure you have:
 |---|---|---|
 | `SERPER_API_KEY` | [serper.dev](https://serper.dev) | Free — 2,500 queries/month |
 | `GROQ_API_KEY` | [console.groq.com/keys](https://console.groq.com/keys) | Free |
-| `STELLAR_RECEIVING_ADDRESS` | [Stellar Lab](https://laboratory.stellar.org/#account-creator?network=test) | Free testnet keypair |
+| `STELLAR_RECEIVING_ADDRESS` | [Stellar Lab](https://lab.stellar.org/account/fund) | Free testnet keypair |
 
 > **Note:** You only need `SERPER_API_KEY` and `GROQ_API_KEY` for most frontend work. The `STELLAR_RECEIVING_ADDRESS` is only required if you are working on the payment flow.
 
@@ -167,8 +168,8 @@ Before you begin, make sure you have:
 ### 1. Fork and clone
 
 ```bash
-# Fork the repo on GitHub first, then:
-git clone https://github.com/<your-username>/Stellar-searchss.git
+# Fork the repository on GitHub first, then clone it:
+git clone https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss.git
 cd Stellar-searchss
 ```
 
@@ -191,7 +192,7 @@ Open `.env` and fill in your values:
 SERPER_API_KEY=your_serper_api_key_here
 GROQ_API_KEY=gsk_your_groq_key_here
 
-# Required for x402 payment flow
+# Required for x402 payment flow (official x402.org facilitator — no facilitator API key required)
 STELLAR_RECEIVING_ADDRESS=GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 STELLAR_NETWORK=stellar:testnet
 VITE_STELLAR_NETWORK=stellar:testnet
@@ -209,8 +210,8 @@ VITE_SERVER_URL=http://localhost:3001
 1. Install [Freighter](https://freighter.app) browser extension.
 2. Create a new wallet (or import one).
 3. Switch to **Testnet**: Settings → Network → Testnet.
-4. Get a funded testnet account at [Stellar Lab](https://laboratory.stellar.org/#account-creator?network=test).
-5. Add the USDC trustline and claim testnet USDC from the faucet.
+4. Get a funded testnet account at [Stellar Lab](https://lab.stellar.org/account/fund).
+5. Add the USDC trustline and claim testnet USDC from the [Circle faucet](https://faucet.circle.com) — the full walkthrough is the [Get testnet USDC](README.md#get-testnet-usdc) section of the README.
 
 > If you are **not** working on the wallet or payment flow, you can skip step 4 entirely — the frontend works without a wallet for most UI changes.
 
@@ -459,6 +460,8 @@ When you open a bug, include:
 
 Only write a comment when the **why** is non-obvious — a hidden constraint, a Stellar SDK quirk, or a workaround for a specific bug. Do not comment what the code does; well-named identifiers do that. Do not leave `TODO:` comments in PRs — open an issue instead.
 
+Significant architecture decisions are recorded as [Architecture Decision Records](./docs/adr/README.md) in `docs/adr/`. If your change reverses or revises one of those decisions, update the relevant ADR (or write a new one that supersedes it).
+
 ```ts
 // Freighter returns a Buffer, not a string — must convert to base64 explicitly.
 // Using .toString() gives "[object Buffer]" (9 chars) causing x402 signature length error.
@@ -476,7 +479,15 @@ const signedAuthEntry = Buffer.from(raw as unknown as Uint8Array).toString('base
 
 ## Testing
 
-Currently the project relies on manual testing. We are actively adding automated tests — see the open [testing issues](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues?q=is%3Aopen+label%3Atesting). If you are adding a new hook or server route, please include tests.
+The frontend uses Vitest, React Testing Library, and jsdom for component tests. See the open [testing issues](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues?q=is%3Aopen+label%3Atesting) for areas that still need coverage. If you add a hook, component, or server route, include focused tests where practical.
+
+### Component-test conventions
+
+- Put tests next to the component as `<Component>.test.tsx`.
+- Render with React Testing Library and query by accessible role or label before using test IDs.
+- Test user-visible behavior (including guards and empty/loading states), not implementation details.
+- Mock network, wallet, and toast boundaries; do not make payment calls from unit tests.
+- Run `npm test` for a one-shot Vitest run or `npm run test:watch` while developing.
 
 ### Manual testing checklist
 
@@ -541,6 +552,41 @@ npm run test:search "Stellar blockchain"
 
 ---
 
+## Changelog & Releases
+
+Every notable change to StellarSearch is recorded in [`CHANGELOG.md`](./CHANGELOG.md), which follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### When to update the changelog
+
+If your PR changes behaviour that a deployer or user would care about, add an entry under the `## [Unreleased]` section of `CHANGELOG.md` in the same PR. Use the appropriate subsection:
+
+| Subsection | Use for |
+|---|---|
+| `Added` | New features, new env vars, new endpoints |
+| `Changed` | Behaviour changes to existing features |
+| `Deprecated` | Features that will be removed in a future release |
+| `Removed` | Features removed in this release |
+| `Fixed` | Bug fixes |
+| `Security` | Vulnerability fixes |
+
+Docs-only, test-only, and internal refactor PRs do not require a changelog entry.
+
+### Release process
+
+Maintainers cut releases as follows:
+
+1. Move entries from `## [Unreleased]` into a new `## [x.y.z] - YYYY-MM-DD` section.
+2. Update the comparison links at the bottom of `CHANGELOG.md`.
+3. Bump the version in `package.json` to match.
+4. Tag the commit (`git tag vX.Y.Z`) and push the tag.
+5. Publish the GitHub Release using the new changelog section as the release notes.
+
+### Automating from conventional commits
+
+Because all commits follow [Conventional Commits](#commit-messages), the changelog can be generated automatically. A future PR will wire up a tool such as [`git-cliff`](https://git-cliff.org) or [`conventional-changelog`](https://github.com/conventional-changelog/conventional-changelog) to produce entries from commit history. Until then, update `CHANGELOG.md` by hand — the commit types (`feat`, `fix`, `docs`, etc.) map directly onto the changelog subsections above.
+
+---
+
 ## Getting Help
 
 - **Bug or question about the code?** Open a [GitHub Issue](https://github.com/StellarAgent-AI-Agent-Payment-Rails/Stellar-searchss/issues/new).
@@ -556,4 +602,5 @@ All contributors are welcome to add themselves to a `CONTRIBUTORS` list. When yo
 
 ---
 
-*StellarSearch — Stellar Hackathon 2026 · Agents on Stellar*
+*StellarSearch — Stellar Hackathon 2026 · Agents on Stellar*.
+.
