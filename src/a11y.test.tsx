@@ -31,9 +31,11 @@ const wallet: WalletState = {
   network: 'stellar:testnet',
   xlmBalance: '0',
   usdcBalance: '0',
+  usdcTrustline: null,
   loading: false,
   refreshing: false,
   error: null,
+  fundingRequired: false,
   hint: null,
 }
 

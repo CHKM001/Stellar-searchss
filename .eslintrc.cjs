@@ -21,6 +21,9 @@ module.exports = {
     'plugin:react-hooks/recommended',
   ],
   rules: {
+    // Intentional infinite loops (pagination drains, retry loops) use
+    // `while (true)`; still flag constant conditions in `if`/ternary.
+    'no-constant-condition': ['error', { checkLoops: false }],
     'react-refresh/only-export-components': 'off',
     '@typescript-eslint/no-unused-vars': [
       'warn',

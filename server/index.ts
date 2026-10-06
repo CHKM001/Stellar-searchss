@@ -112,7 +112,15 @@ function displayAddress(address: string): string {
 }
 
 // ─── Groq ─────────────────────────────────────────────────────────────────
-const groq = new Groq({ apiKey: GROQ_API_KEY })
+// Construct the Groq client lazily: `new Groq()` throws when GROQ_API_KEY is
+// unset, and importing this module (e.g. in the parity tests, which never hit
+// an AI route) must not require Groq credentials. The key is only needed when
+// an AI endpoint is actually called.
+let groqClient: Groq | null = null
+function getGroq(): Groq {
+  if (!groqClient) groqClient = new Groq({ apiKey: GROQ_API_KEY })
+  return groqClient
+}
 
 // ─── Middleware ───────────────────────────────────────────────────────────
 app.use(cors(buildCorsOptions()))
@@ -236,6 +244,22 @@ app.use((req, res, next) => {
   next()
 })
 
+// Validate the query BEFORE the payment gate: a request with no query is a bad
+// request (400), not a payment-required (402) — you should never be asked to
+// pay for a malformed request. This mirrors the serverless handler
+// (api/search.ts), which validates `q` before its payment check, and keeps the
+// Express and serverless paths in parity (see tests/parity.test.ts).
+app.use((req, res, next) => {
+  const paidSearchRoutes = ['/search', '/images', '/news']
+  if (req.method === 'GET' && paidSearchRoutes.includes(req.path)) {
+    const { q } = req.query as Record<string, string>
+    if (!q?.trim()) {
+      return res.status(400).json({ error: 'Missing required parameter: q' })
+    }
+  }
+  next()
+})
+
 app.use(paymentMiddlewareFromConfig(x402Routes, facilitatorClient, schemes))
 
 const MAX_QUERY_LENGTH = 256
@@ -254,6 +278,7 @@ export function validateQuery(
   }
   // Strip null bytes and ASCII control characters (C0 + DEL) to prevent
   // log injection and odd Serper behavior.
+  // eslint-disable-next-line no-control-regex -- intentionally strip control chars from user input
   const cleanQ = q.replace(/[\x00-\x1F\x7F]/g, '').trim()
   if (!cleanQ) {
     return { ok: false, error: 'Query contains no valid characters.' }
@@ -280,6 +305,7 @@ function parseSuggestions(raw: string): string[] {
   const cleaned: string[] = []
   for (const item of parsed) {
     if (typeof item !== 'string') return []
+    // eslint-disable-next-line no-control-regex -- intentionally strip control chars from model output
     const trimmed = item.replace(/[\x00-\x1F\x7F]/g, '').trim()
     if (!trimmed) return []
     cleaned.push(trimmed.slice(0, MAX_SUGGESTION_LENGTH))
@@ -418,7 +444,7 @@ app.get('/suggestions', async (req: Request, res: Response) => {
   const cleanQ = v.cleanQ
 
   try {
-    const suggCompletion = await groq.chat.completions.create({
+    const suggCompletion = await getGroq().chat.completions.create({
       model: 'qwen/qwen3.8-27b',
       messages: [
         {
@@ -714,7 +740,7 @@ app.post('/ai/chat', freeRouteLimiter, async (req: Request, res: Response) => {
 
   if (!wantsStream) {
     try {
-      const completion = await groq.chat.completions.create({
+      const completion = await getGroq().chat.completions.create({
         model: 'qwen/qwen3.8-27b',
         messages: groqMessages,
         max_tokens: 512,
@@ -753,7 +779,7 @@ app.post('/ai/chat', freeRouteLimiter, async (req: Request, res: Response) => {
   })
 
   try {
-    const stream = await groq.chat.completions.create(
+    const stream = await getGroq().chat.completions.create(
       {
         model: 'qwen/qwen3.8-27b',
         messages: groqMessages,
@@ -790,12 +816,11 @@ app.post('/summarize-url', freeRouteLimiter, async (req: Request, res: Response)
   let task = 'Summarise the page in a few short paragraphs, then list the key points.'
   if (instruction !== undefined) {
     if (typeof instruction !== 'string' || instruction.length > MAX_INSTRUCTION_LENGTH) {
-      return res
-        .status(400)
-        .json({
-          error: `instruction must be a string of at most ${MAX_INSTRUCTION_LENGTH} characters`,
-        })
+      return res.status(400).json({
+        error: `instruction must be a string of at most ${MAX_INSTRUCTION_LENGTH} characters`,
+      })
     }
+    // eslint-disable-next-line no-control-regex -- intentionally strip control chars from user input
     const clean = instruction.replace(/[\x00-\x1F\x7F]/g, ' ').trim()
     if (clean) task = clean
   }
@@ -804,7 +829,7 @@ app.post('/summarize-url', freeRouteLimiter, async (req: Request, res: Response)
   try {
     const page = await fetchPageText(url)
 
-    const completion = await groq.chat.completions.create({
+    const completion = await getGroq().chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
         {
@@ -956,7 +981,10 @@ app.get('/', (_req: Request, res: Response) => {
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────
-if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
+// Only bind a port when this file is the process entry point. Importing it
+// (e.g. from server/app.ts in the parity tests) must never start a listener.
+const isMainModule = process.argv[1] === fileURLToPath(import.meta.url)
+if (isMainModule && process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`\n🚀 StellarSearch on http://localhost:${PORT}`)
     console.log(`   Network:     ${NETWORK}`)

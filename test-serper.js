@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- standalone CommonJS debug script */
 // Simple test to verify Serper.dev API integration and validate the response schema.
 const fetch = require('node-fetch')
 

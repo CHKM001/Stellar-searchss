@@ -3,7 +3,6 @@ import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { AnimatedBackground, Navbar, LiveTicker, Footer } from './components/layout'
 import { GroqAssistant } from './components/ai'
 import { useFreighterWallet, useSearch } from './hooks'
-import { clearReceipts } from './lib/receipts'
 import { Toaster } from 'sonner'
 
 const SearchPage = lazy(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })))
@@ -56,7 +55,8 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const { wallet, transactions, txLoading, connect, disconnect, refresh } = useFreighterWallet()
+  const { wallet, transactions, txLoading, connect, disconnect, refresh, clearStoredReceipts } =
+    useFreighterWallet()
 
   const { session, search, reset, retry } = useSearch(wallet.connected ? wallet.publicKey : null)
 
@@ -83,7 +83,7 @@ export default function App() {
     disconnect()
     const shouldClear = window.confirm('Also clear stored payment receipts from this device?')
     if (shouldClear) {
-      clearReceipts()
+      clearStoredReceipts()
     }
   }
 
